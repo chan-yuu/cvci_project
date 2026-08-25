@@ -1,0 +1,45 @@
+#!/usr/bin/bash
+
+# Unreal/CARLA refuse to run as root. Re-exec as cyun when invoked by root.
+if [ "$(id -u)" -eq 0 ]; then
+	_script="$(realpath "$0")"
+	_cli="$(dirname "$_script")"
+	echo "CARLA cannot run as root; switching to user cyun"
+	exec sudo -u cyun -H \
+		PATH="$_cli:$PATH" \
+		DISPLAY="${DISPLAY:-:1}" \
+		"$_script" "$@"
+fi
+
+port=2000
+# if there is first argument, use it as port
+if [ "$1" != "" ]; then
+	port=$1
+fi
+
+streaming_port=$((port + 1))
+if [ "$2" != "" ]; then
+	streaming_port=$2
+fi
+
+# Shared ~/.envrc may export CARLA_ROOT for the old 0.9.15 tree; always
+# take this repo's .env so data collection uses 0.9.16.
+unset CARLA_ROOT
+_cli="$(dirname "$(realpath "$0")")"
+# shellcheck source=dotenv
+. "$_cli/dotenv"
+_carla_root="$(printf '%s\n' "$CARLA_ROOT")"
+
+# Restrict Vulkan to the NVIDIA GPU: with an AMD iGPU and Mesa's software
+# lavapipe ICD also installed, -graphicsadapter=0 can otherwise select the
+# wrong device and CARLA renders on the CPU.
+VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/nvidia_icd.json \
+__NV_PRIME_RENDER_OFFLOAD=1 \
+"$_carla_root"/CarlaUE4.sh \
+    -world-port=$port \
+    -resx=800 \
+    -resy=600 \
+    -nosound \
+    -graphicsadapter=0 \
+    -carla-streaming-port=$streaming_port \
+    -RenderOffScreen
