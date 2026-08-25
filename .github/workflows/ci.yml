@@ -1,0 +1,68 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, pre-release ]
+  workflow_dispatch:
+
+jobs:
+  test-and-lint:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Configure .env
+      run: |
+        cp .env.example .env
+        sed -i "s|^CARLA_ROOT=.*|CARLA_ROOT=${GITHUB_WORKSPACE}/3rd_party/CARLA/standard_0916|" .env
+
+    - name: Install micromamba
+      # The env cache is keyed on this workflow file; it determines the tool list.
+      uses: mamba-org/setup-micromamba@v2
+      with:
+        environment-name: lead
+        create-args: python=3.10 -c conda-forge ffmpeg parallel tree gcc zip unzip git-lfs uv
+        cache-environment: true
+        cache-environment-key: environment-${{ runner.os }}-py3.10-${{ hashFiles('.github/workflows/ci.yml') }}
+
+    - name: Install project
+      # The cached editable install goes stale when the package layout changes.
+      run: micromamba run -n lead uv pip install -e "." --reinstall-package lead
+
+    - name: Run unit tests
+      env:
+        LEAD_RUNTIME_TYPE_CHECKING: "true"
+      run: >
+        micromamba run -n lead pytest tests/unittests
+        --cov --cov-report=term-missing --cov-report=xml
+
+    - name: Coverage summary
+      if: always()
+      run: |
+        {
+          echo '<details><summary>Coverage by file</summary>'
+          echo
+          echo '```'
+          micromamba run -n lead coverage report
+          echo '```'
+          echo '</details>'
+        } >> "$GITHUB_STEP_SUMMARY"
+
+    - name: Upload coverage report
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: coverage-xml
+        path: outputs/coverage/coverage.xml
+        if-no-files-found: warn
+
+    - name: Cache pre-commit environments
+      uses: actions/cache@v4
+      with:
+        path: ~/.cache/pre-commit
+        key: pre-commit-${{ runner.os }}-${{ hashFiles('.pre-commit-config.yaml') }}
+
+    - name: Run pre-commit
+      run: micromamba run -n lead pre-commit run --all-files

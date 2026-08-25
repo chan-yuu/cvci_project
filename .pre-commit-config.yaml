@@ -1,0 +1,113 @@
+exclude: '^3rd_party/'
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: check-added-large-files
+      - id: check-case-conflict
+      - id: check-merge-conflict
+        args: [--assume-in-merge]
+      - id: check-symlinks
+      - id: destroyed-symlinks
+      - id: detect-private-key
+      - id: check-toml
+      - id: check-vcs-permalinks
+      - id: debug-statements
+      - id: check-yaml
+      - id: end-of-file-fixer
+      - id: fix-byte-order-marker
+      - id: mixed-line-ending
+      - id: trailing-whitespace
+      - id: check-json
+        exclude: /README\.rst$|\.pot?$
+      - id: pretty-format-json
+        exclude: /README\.rst$|\.pot?$|\.ipynb$
+        args: [--no-sort-keys, --autofix]
+
+  - repo: https://github.com/pre-commit/pygrep-hooks
+    rev: v1.10.0
+    hooks:
+      - id: python-check-blanket-noqa
+      - id: python-check-blanket-type-ignore
+
+  - repo: https://github.com/codespell-project/codespell
+    rev: v2.4.1
+    hooks:
+      - id: codespell
+        # tomli lets codespell read [tool.codespell] from pyproject.toml on 3.10.
+        additional_dependencies: [tomli]
+
+  - repo: https://github.com/kynan/nbstripout
+    rev: 0.8.2
+    hooks:
+      - id: nbstripout
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.14.10
+    hooks:
+      # fix = true comes from [tool.ruff] in pyproject.toml.
+      - id: ruff
+      - id: ruff-format
+
+  - repo: https://github.com/efrecon/pre-commit-hook-lxml
+    rev: v0.1.4
+    hooks:
+      - id: format-xml
+
+  - repo: https://github.com/jsh9/pydoclint
+    rev: 0.8.3
+    hooks:
+      - id: pydoclint
+        # Configured via [tool.pydoclint] in pyproject.toml.
+        args: [--config=pyproject.toml]
+        types: [python]
+
+  - repo: https://github.com/executablebooks/mdformat
+    rev: 0.7.17
+    hooks:
+      - id: mdformat
+        additional_dependencies:
+          - mdformat-gfm
+          - mdformat-black
+
+  - repo: https://github.com/tox-dev/pyproject-fmt
+    rev: "v2.21.1"
+    hooks:
+      - id: pyproject-fmt
+
+  - repo: https://github.com/asottile/add-trailing-comma
+    rev: v4.0.0
+    hooks:
+    -   id: add-trailing-comma
+
+  - repo: https://github.com/shellcheck-py/shellcheck-py
+    rev: v0.11.0.1
+    hooks:
+      - id: shellcheck
+        args: [--severity=error]
+
+  - repo: https://github.com/rhysd/actionlint
+    rev: v1.7.12
+    hooks:
+      - id: actionlint
+
+  - repo: local
+    hooks:
+      - id: forbid-merge-leftovers
+        name: Forbid merge/rebase leftover files
+        entry: git merge/rebase leftover file committed
+        language: fail
+        files: '\.(orig|rej)$|\.(BACKUP|BASE|LOCAL|REMOTE)\.\d+$'
+      - id: lint-imports
+        name: import-linter
+        entry: lint-imports
+        language: system
+        pass_filenames: false
+        files: ^src/lead/
+      - id: basedpyright
+        name: basedpyright
+        entry: basedpyright --project .
+        language: system
+        types: [python]
+        files: ^src/lead/
+        exclude: ^src/lead/expert/
